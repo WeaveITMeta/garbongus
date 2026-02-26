@@ -1,0 +1,27 @@
+[package]
+name = "garbongus"
+version = "0.1.0"
+edition = "2021"
+authors = ["Garbongus Contributors"]
+description = "Fluid mechanics library for suction/vacuum lift, capillary rise, and pipe flow calculations"
+license = "MIT"
+keywords = ["fluid-mechanics", "physics", "capillary", "vacuum", "pipe-flow"]
+categories = ["science", "mathematics", "no-std"]
+readme = "README.md"
+
+[lib]
+name = "garbongus"
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "fluid_benchmarks"
+harness = false
