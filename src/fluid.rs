@@ -64,8 +64,8 @@ impl Fluid {
     ///
     /// # Arguments
     /// - `temp_c` — temperature in °C (valid 0–100°C)
-    /// - `salinity_ppt` — salinity in g/kg (ppt); standard seawater ≈ 35,
-    ///   Bay of Bengal ≈ 32, brine reject ≈ 70
+    /// - `salinity_ppt` — salinity in g/kg (ppt); typical values:
+    ///   brackish 5–15, coastal 25–32, open ocean ≈35, RO brine reject 60–70
     ///
     /// # Panics
     /// Panics in debug mode if `temp_c` is outside [0, 100] or `salinity_ppt` is negative.
@@ -306,10 +306,10 @@ mod tests {
     }
 
     #[test]
-    fn test_seawater_density_bay_of_bengal() {
-        // Bay of Bengal: ~32 g/L, 25°C → ρ ≈ 1021 kg/m³
+    fn test_seawater_density_32ppt_25c() {
+        // Coastal water: 32 ppt, 25°C → ρ ≈ 1021 kg/m³
         let d = seawater_density(25.0, 32.0);
-        assert!((d - 1021.0).abs() < 2.0, "Bay of Bengal density = {d:.1}");
+        assert!((d - 1021.0).abs() < 2.0, "density at 32ppt = {d:.1}");
     }
 
     #[test]

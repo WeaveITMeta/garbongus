@@ -16,27 +16,27 @@
 //! | [`vacuum`] | Suction/vacuum lift over arbitrary distances |
 //! | [`capillary`] | Capillary rise height calculations |
 //!
-//! ## Quick Example — Seawater Pipeline
+//! ## Quick Example
 //!
 //! ```rust
 //! use garbongus::fluid::Fluid;
 //! use garbongus::flow::{required_diameter, pump_power, FlowRate};
 //!
-//! // Bay of Bengal feedwater: 32 ppt salinity, 25°C
-//! let fluid = Fluid::seawater(25.0, 32.0);
-//! println!("Seawater density: {:.1} kg/m³", fluid.density_kg_m3);
+//! // Seawater at 35 ppt salinity, 20°C
+//! let fluid = Fluid::seawater(20.0, 35.0);
+//! println!("Density: {:.1} kg/m³", fluid.density_kg_m3);
 //!
-//! // Size a pipe for 595 m³/s at 3 m/s
-//! let d = required_diameter(595.0, 3.0);
-//! println!("Required diameter: {:.1} m", d);
+//! // Size a pipe: Q = 10 m³/s at 2 m/s → D ≈ 2.52 m
+//! let d = required_diameter(10.0, 2.0);
+//! println!("Required diameter: {:.2} m", d);
 //!
-//! // Pump power for 300m elevation lift
-//! let pp = pump_power(fluid.density_kg_m3, 595.0, 300.0, 0.85);
-//! println!("Pump power: {:.2} GW", pp.shaft_gw());
+//! // Pump power for 50m total head, 85% efficiency
+//! let pp = pump_power(fluid.density_kg_m3, 10.0, 50.0, 0.85);
+//! println!("Pump power: {:.1} kW", pp.shaft_kw());
 //!
 //! // Flow rate conversions
-//! let fr = FlowRate::from_m3s(2.8);
-//! println!("Tunnel flow: {:.0} MGD", fr.to_mgd());
+//! let fr = FlowRate::from_m3s(1.0);
+//! println!("{:.1} MGD = {:.0} L/min", fr.to_mgd(), fr.to_lpm());
 //! ```
 
 pub mod capillary;

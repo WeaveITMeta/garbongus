@@ -2,7 +2,7 @@
 //!
 //! ## Purpose
 //! Multi-segment pipeline modeling with elevation profiles, friction losses,
-//! and pump power calculations. Core module for IGBWP route analysis.
+//! and pump power calculations. Applicable to any long-distance water conveyance.
 //!
 //! ## Algorithms
 //! - Per-segment Darcy-Weisbach friction loss: ΔP = f·(L/D)·(ρv²/2)
@@ -23,7 +23,7 @@ use crate::flow::{pump_power, PumpPower};
 /// A single segment of a pipeline route.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipelineSegment {
-    /// Segment name (e.g., "Paradip → Sambalpur")
+    /// Segment name or label
     pub name: String,
     /// Horizontal distance (m) — straight-line, not terrain-adjusted
     pub horizontal_distance_m: f64,
@@ -216,7 +216,7 @@ impl Pipeline {
 ///
 /// L = Σ √(Δx² + Δh²)
 ///
-/// This is the discrete arc-length integral from README §Terrain Curve Extrapolation.
+/// Discrete arc-length integral over sampled elevations.
 ///
 /// # Arguments
 /// - `horizontal_distance_m` — total straight-line horizontal distance (m)
@@ -245,27 +245,24 @@ pub fn terrain_adjusted_length(horizontal_distance_m: f64, elevation_samples: &[
 mod tests {
     use super::*;
 
-    /// Build the IGBWP pipeline from IGBWP.md §6
-    fn igbwp_pipeline() -> Pipeline {
-        // Fresh water at 25°C (post-desalination)
+    /// Build a generic 4-segment pipeline for testing:
+    /// Coast(0m) → Foothills(170m) → Ridge(300m) → Valley(80m) → Destination(98m)
+    fn four_segment_pipeline() -> Pipeline {
         let fluid = Fluid::water(25.0);
-        // 595 m³/s, η=0.85
         let mut pl = Pipeline::new(fluid, 595.0, 0.85);
 
-        // Segment 1: Paradip → Sambalpur (200 km, +170m, ×1.10)
         pl.add_segment(PipelineSegment {
-            name: "Paradip → Sambalpur".into(),
+            name: "Coast → Foothills".into(),
             horizontal_distance_m: 200_000.0,
             start_elevation_m: 0.0,
             end_elevation_m: 170.0,
             terrain_multiplier: 1.10,
             diameter_m: 16.0,
-            roughness_m: 0.000_046, // smooth steel
+            roughness_m: 0.000_046,
         });
 
-        // Segment 2: Sambalpur → Raipur (180 km, +130m, ×1.20)
         pl.add_segment(PipelineSegment {
-            name: "Sambalpur → Raipur".into(),
+            name: "Foothills → Ridge".into(),
             horizontal_distance_m: 180_000.0,
             start_elevation_m: 170.0,
             end_elevation_m: 300.0,
@@ -274,9 +271,8 @@ mod tests {
             roughness_m: 0.000_046,
         });
 
-        // Segment 3: Raipur → Mirzapur (200 km, −220m, ×1.15)
         pl.add_segment(PipelineSegment {
-            name: "Raipur → Mirzapur".into(),
+            name: "Ridge → Valley".into(),
             horizontal_distance_m: 200_000.0,
             start_elevation_m: 300.0,
             end_elevation_m: 80.0,
@@ -285,9 +281,8 @@ mod tests {
             roughness_m: 0.000_046,
         });
 
-        // Segment 4: Mirzapur → Prayagraj (80 km, +18m, ×1.05)
         pl.add_segment(PipelineSegment {
-            name: "Mirzapur → Prayagraj".into(),
+            name: "Valley → Destination".into(),
             horizontal_distance_m: 80_000.0,
             start_elevation_m: 80.0,
             end_elevation_m: 98.0,
@@ -300,52 +295,49 @@ mod tests {
     }
 
     #[test]
-    fn test_igbwp_total_length() {
-        let pl = igbwp_pipeline();
+    fn test_total_length_terrain_adjusted() {
+        let pl = four_segment_pipeline();
         let r = pl.analyze();
-        // Expected: ~880 km terrain-adjusted (from multipliers applied to each segment)
         // 200*1.10 + 180*1.20 + 200*1.15 + 80*1.05 = 220+216+230+84 = 750 km
-        // Note: IGBWP says ~990 km with ×1.30 overall; our per-segment multipliers give ~750 km
         let total_km = r.total_length_m / 1000.0;
-        assert!(total_km > 700.0 && total_km < 1100.0,
-            "IGBWP total length = {total_km:.0} km");
+        assert!((total_km - 750.0).abs() < 1.0,
+            "total length = {total_km:.0} km");
     }
 
     #[test]
-    fn test_igbwp_max_elevation() {
-        let pl = igbwp_pipeline();
+    fn test_max_elevation_tracks_ridge() {
+        let pl = four_segment_pipeline();
         let r = pl.analyze();
-        // Raipur is the highest point at 300m
+        // Ridge is the highest point at 300m
         assert!((r.max_elevation_m - 300.0).abs() < 0.1, "max elev = {:.0}", r.max_elevation_m);
         assert!((r.max_elevation_gain_m - 300.0).abs() < 0.1, "max gain = {:.0}", r.max_elevation_gain_m);
     }
 
     #[test]
-    fn test_igbwp_pump_power_order_of_magnitude() {
-        let pl = igbwp_pipeline();
+    fn test_pump_power_positive_for_uphill_route() {
+        let pl = four_segment_pipeline();
         let r = pl.analyze();
-        // IGBWP §7: total pumping ≈ 6 GW (4.1 elevation + 1.9 friction)
-        // Our model uses max_elevation_gain (300m) + friction, so should be in the right ballpark
+        // With 300m elevation gain + friction, pump power should be in GW range
+        // for 595 m³/s flow rate
         let gw = r.pump_power.shaft_gw();
         assert!(gw > 2.0 && gw < 15.0,
-            "IGBWP pump power = {gw:.2} GW (expected ~6 GW order)");
+            "pump power = {gw:.2} GW");
     }
 
     #[test]
-    fn test_igbwp_friction_head_positive() {
-        let pl = igbwp_pipeline();
+    fn test_friction_head_positive() {
+        let pl = four_segment_pipeline();
         let r = pl.analyze();
         assert!(r.total_friction_head_m > 0.0, "friction head must be positive");
-        // Friction head should be meaningful but not dominate (100–500m range for this scale)
         assert!(r.total_friction_head_m > 10.0,
             "friction head = {:.1} m (should be significant)", r.total_friction_head_m);
     }
 
     #[test]
-    fn test_igbwp_net_elevation() {
-        let pl = igbwp_pipeline();
+    fn test_net_elevation_change() {
+        let pl = four_segment_pipeline();
         let r = pl.analyze();
-        // Start: 0m (Paradip), End: 98m (Prayagraj) → net = +98m
+        // Start: 0m, End: 98m → net = +98m
         assert!((r.net_elevation_change_m - 98.0).abs() < 0.1,
             "net elevation = {:.1}", r.net_elevation_change_m);
     }

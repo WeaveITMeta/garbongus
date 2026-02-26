@@ -151,11 +151,11 @@ fn bench_fluid_seawater(c: &mut Criterion) {
 // ── Flow & pump power benchmarks ─────────────────────────────────────────
 
 fn bench_flow(c: &mut Criterion) {
-    c.bench_function("flow::required_diameter_595", |b| {
+    c.bench_function("flow::required_diameter_large", |b| {
         b.iter(|| flow::required_diameter(black_box(595.0), black_box(3.0)))
     });
 
-    c.bench_function("flow::pump_power_igbwp", |b| {
+    c.bench_function("flow::pump_power_high_flow", |b| {
         b.iter(|| flow::pump_power(black_box(1025.0), black_box(595.0), black_box(300.0), black_box(0.85)))
     });
 
@@ -174,12 +174,12 @@ fn bench_flow(c: &mut Criterion) {
 // ── Manning equation benchmarks ──────────────────────────────────────────
 
 fn bench_manning(c: &mut Criterion) {
-    c.bench_function("manning::tunnel_3_66m_gravity", |b| {
+    c.bench_function("manning::3_66m_gentle_slope", |b| {
         let mf = ManningFlow::new(3.66, 1609.0, 0.012, 5.0);
         b.iter(|| black_box(mf.calculate()))
     });
 
-    c.bench_function("manning::tunnel_3_66m_pumped", |b| {
+    c.bench_function("manning::3_66m_steep_slope", |b| {
         let mf = ManningFlow::new(3.66, 1609.0, 0.012, 50.0);
         b.iter(|| black_box(mf.calculate()))
     });
@@ -188,29 +188,29 @@ fn bench_manning(c: &mut Criterion) {
 // ── Pipeline benchmarks ──────────────────────────────────────────────────
 
 fn bench_pipeline(c: &mut Criterion) {
-    c.bench_function("pipeline::igbwp_4_segment_analyze", |b| {
+    c.bench_function("pipeline::4_segment_750km", |b| {
         let fluid = Fluid::water(25.0);
         let mut pl = Pipeline::new(fluid, 595.0, 0.85);
         pl.add_segment(PipelineSegment {
-            name: "Paradip→Sambalpur".into(),
+            name: "Coast→Foothills".into(),
             horizontal_distance_m: 200_000.0,
             start_elevation_m: 0.0, end_elevation_m: 170.0,
             terrain_multiplier: 1.10, diameter_m: 16.0, roughness_m: 0.000_046,
         });
         pl.add_segment(PipelineSegment {
-            name: "Sambalpur→Raipur".into(),
+            name: "Foothills→Ridge".into(),
             horizontal_distance_m: 180_000.0,
             start_elevation_m: 170.0, end_elevation_m: 300.0,
             terrain_multiplier: 1.20, diameter_m: 16.0, roughness_m: 0.000_046,
         });
         pl.add_segment(PipelineSegment {
-            name: "Raipur→Mirzapur".into(),
+            name: "Ridge→Valley".into(),
             horizontal_distance_m: 200_000.0,
             start_elevation_m: 300.0, end_elevation_m: 80.0,
             terrain_multiplier: 1.15, diameter_m: 16.0, roughness_m: 0.000_046,
         });
         pl.add_segment(PipelineSegment {
-            name: "Mirzapur→Prayagraj".into(),
+            name: "Valley→Destination".into(),
             horizontal_distance_m: 80_000.0,
             start_elevation_m: 80.0, end_elevation_m: 98.0,
             terrain_multiplier: 1.05, diameter_m: 16.0, roughness_m: 0.000_046,

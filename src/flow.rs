@@ -2,14 +2,14 @@
 //!
 //! ## Purpose
 //! Flow rate calculations, pipe sizing, unit conversions, and Bernoulli's equation.
-//! Provides the core hydraulic relationships used throughout pipeline and tunnel design.
+//! Provides core hydraulic relationships for any pipeline or conduit system.
 //!
 //! ## Algorithms
 //! - Continuity: Q = A·v, A = π·(D/2)²
 //! - Pipe sizing: D = 2·√(Q / (v·π))
 //! - Bernoulli: P₁ + ½ρv₁² + ρgh₁ = P₂ + ½ρv₂² + ρgh₂
 //! - Pump power: P = ρ·g·Q·H / η
-//! - Pressure→depth: d = P / (ρ·g) (well meter sensor conversion)
+//! - Pressure→depth: d = P / (ρ·g)
 //!
 //! ## Data Structures
 //! - [`FlowRate`] — volume flow rate with unit conversions
@@ -222,13 +222,13 @@ pub fn pump_power(
 }
 
 // ---------------------------------------------------------------------------
-// Well meter sensor conversion
+// Pressure ↔ depth conversion
 // ---------------------------------------------------------------------------
 
 /// Convert pressure to water column depth (m).
 /// d = P / (ρ·g)
 ///
-/// Used by WELL_METER pressure transducers to convert gauge pressure to water level.
+/// Useful for pressure transducers that measure gauge pressure as a water level.
 #[inline]
 pub fn pressure_to_depth(pressure_pa: f64, density_kg_m3: f64) -> f64 {
     pressure_pa / (density_kg_m3 * G)
@@ -293,20 +293,20 @@ mod tests {
         assert!((v - 4.0 / PI).abs() < 1e-10);
     }
 
-    // --- Pipe diameter sizing (WATER README §Pipe Specs) ---
+    // --- Pipe diameter sizing: D = 2√(Q / (v·π)) ---
 
     #[test]
-    fn test_required_diameter_igbwp() {
-        // IGBWP: Q=595 m³/s, v=3 m/s → D ≈ 15.9 m
+    fn test_required_diameter_large_flow() {
+        // Q=595 m³/s, v=3 m/s → A = 198.3 m² → D = 2√(198.3/π) ≈ 15.9 m
         let d = required_diameter(595.0, 3.0);
-        assert!((d - 15.9).abs() < 0.5, "IGBWP diameter = {d:.1}");
+        assert!((d - 15.9).abs() < 0.5, "diameter = {d:.1}");
     }
 
     #[test]
-    fn test_required_diameter_california() {
-        // README: Q=1172 m³/s, v=3 m/s → D ≈ 22.3 m
+    fn test_required_diameter_very_large_flow() {
+        // Q=1172 m³/s, v=3 m/s → D ≈ 22.3 m
         let d = required_diameter(1172.0, 3.0);
-        assert!((d - 22.3).abs() < 0.5, "California diameter = {d:.1}");
+        assert!((d - 22.3).abs() < 0.5, "diameter = {d:.1}");
     }
 
     // --- Unit conversions ---
@@ -336,10 +336,10 @@ mod tests {
     }
 
     #[test]
-    fn test_tunnel_flow_mgd() {
-        // TUNNEL.md: 2.8 m³/s = 64 MGD
+    fn test_moderate_flow_mgd() {
+        // 2.8 m³/s ≈ 63.9 MGD
         let fr = FlowRate::from_m3s(2.8);
-        assert!((fr.to_mgd() - 64.0).abs() < 1.0, "tunnel MGD = {:.1}", fr.to_mgd());
+        assert!((fr.to_mgd() - 63.9).abs() < 1.0, "MGD = {:.1}", fr.to_mgd());
     }
 
     // --- Bernoulli ---
@@ -361,31 +361,29 @@ mod tests {
         assert!((p2 - 194_000.0).abs() < 1.0, "P2 = {p2:.1}");
     }
 
-    // --- Pump power (IGBWP §7) ---
+    // --- Pump power: P = ρ·g·Q·H / η ---
 
     #[test]
-    fn test_pump_power_igbwp_elevation() {
-        // P = ρ·g·Q·H / η = 1000 × 9.80665 × 595 × 300 / 0.85 ≈ 2.06 GW
-        // Note: IGBWP §7 quotes 4.1 GW using ρ≈1025 (seawater) and possibly different η.
-        // Our calculation with fresh water ρ=1000 is correct at ~2.06 GW.
+    fn test_pump_power_high_flow_moderate_head() {
+        // P = 1000 × 9.80665 × 595 × 300 / 0.85 ≈ 2.06 GW
         let pp = pump_power(1000.0, 595.0, 300.0, 0.85);
-        assert!((pp.shaft_gw() - 2.06).abs() < 0.1, "elevation pump = {:.2} GW", pp.shaft_gw());
+        assert!((pp.shaft_gw() - 2.06).abs() < 0.1, "pump = {:.2} GW", pp.shaft_gw());
     }
 
     #[test]
-    fn test_pump_power_california() {
-        // README: Q=1172, H=500m, η=0.85 → ~6.76 GW
+    fn test_pump_power_very_high_flow_high_head() {
+        // P = 1000 × 9.80665 × 1172 × 500 / 0.85 ≈ 6.76 GW
         let pp = pump_power(1000.0, 1172.0, 500.0, 0.85);
-        assert!((pp.shaft_gw() - 6.76).abs() < 0.5, "California pump = {:.2} GW", pp.shaft_gw());
+        assert!((pp.shaft_gw() - 6.76).abs() < 0.5, "pump = {:.2} GW", pp.shaft_gw());
     }
 
-    // --- Well meter sensor ---
+    // --- Pressure ↔ depth ---
 
     #[test]
-    fn test_pressure_to_depth_well_meter() {
-        // WELL_METER §5: P=49050 Pa → d = 49050/(1000×9.81) ≈ 5.0 m
+    fn test_pressure_to_depth_5m_column() {
+        // P = 49050 Pa → d = 49050/(1000 × 9.80665) ≈ 5.0 m
         let d = pressure_to_depth(49_050.0, 1000.0);
-        assert!((d - 5.0).abs() < 0.05, "well depth = {d:.2} m");
+        assert!((d - 5.0).abs() < 0.05, "depth = {d:.2} m");
     }
 
     #[test]
@@ -396,11 +394,11 @@ mod tests {
         assert!((d2 - depth).abs() < 1e-10);
     }
 
-    // --- Flow rate from well meter DN40 ---
+    // --- Small pipe flow rate ---
 
     #[test]
-    fn test_well_meter_dn40_flow() {
-        // WELL_METER §5: DN40 pipe, A=π×0.02², v=2 m/s → Q = 2.51 L/s = 151 L/min
+    fn test_dn40_pipe_flow_lpm() {
+        // DN40 pipe (D=0.04m), v=2 m/s → A=π×0.02² → Q ≈ 2.51e-3 m³/s = 151 L/min
         let q = flow_rate(0.04, 2.0);
         let fr = FlowRate::from_m3s(q);
         assert!((fr.to_lpm() - 151.0).abs() < 1.0, "DN40 flow = {:.1} L/min", fr.to_lpm());
@@ -409,17 +407,16 @@ mod tests {
     // --- Required replenishment flow ---
 
     #[test]
-    fn test_required_flow_igbwp() {
-        // IGBWP: 15 km³/year overdraft, 80% recharge efficiency → ~595 m³/s
+    fn test_required_flow_15km3_80pct() {
+        // 15 km³/year loss, 80% recharge efficiency → ~595 m³/s continuous
         let q = required_replenishment_flow(15e9, 0.80);
-        assert!((q - 595.0).abs() < 5.0, "IGBWP required Q = {q:.1} m³/s");
+        assert!((q - 595.0).abs() < 5.0, "required Q = {q:.1} m³/s");
     }
 
     #[test]
-    fn test_required_flow_california() {
-        // README: V₀=3.7e12, R=1%/yr → annual_loss = 3.7e10 → Q ≈ 1172 m³/s
-        // README assumes 100% efficiency (no recharge factor mentioned)
+    fn test_required_flow_37km3_100pct() {
+        // 37 km³/year loss, 100% efficiency → ~1172 m³/s continuous
         let q = required_replenishment_flow(3.7e10, 1.0);
-        assert!((q - 1172.0).abs() < 5.0, "California required Q = {q:.1} m³/s");
+        assert!((q - 1172.0).abs() < 5.0, "required Q = {q:.1} m³/s");
     }
 }

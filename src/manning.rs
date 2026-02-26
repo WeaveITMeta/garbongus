@@ -1,8 +1,9 @@
 //! # manning
 //!
 //! ## Purpose
-//! Manning equation for open-channel and gravity-fed tunnel/pipe flow.
-//! Used by the Boring Company tunnel hydraulics calculations (TUNNEL.md §3).
+//! Manning equation for open-channel and gravity-fed full-pipe flow.
+//! Applicable to tunnels, culverts, gravity mains, and any conduit with a free surface
+//! or pressurized gravity-driven flow.
 //!
 //! ## Algorithms
 //! - Manning equation (full pipe): Q = (1/n)·A·R^(2/3)·S^(1/2)
@@ -103,10 +104,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tunnel_gentle_gravity() {
-        // D=3.66m, L=1609m, n=0.012, head=5m (S≈0.31%)
-        // Manning full-pipe: v = (1/0.012) × (0.915)^(2/3) × (0.0031)^(1/2) ≈ 4.3 m/s
-        // Q = 10.52 × 4.3 ≈ 45.5 m³/s
+    fn test_concrete_pipe_gentle_slope() {
+        // D=3.66m, L=1609m, n=0.012 (concrete), head=5m (S≈0.31%)
+        // v = (1/0.012) × (0.915)^(2/3) × (0.0031)^(1/2) ≈ 4.3 m/s
         let mf = ManningFlow::new(3.66, 1609.0, 0.012, 5.0);
         let r = mf.calculate();
         assert!((r.slope - 0.0031).abs() < 0.001, "slope = {:.4}", r.slope);
@@ -116,10 +116,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tunnel_pumped_high() {
-        // D=3.66m, L=1609m, n=0.012, head=50m (S≈3.1%)
-        // Manning full-pipe: v = (1/0.012) × (0.915)^(2/3) × (0.031)^(1/2) ≈ 13.8 m/s
-        // Q = 10.52 × 13.8 ≈ 145 m³/s
+    fn test_concrete_pipe_steep_slope() {
+        // D=3.66m, L=1609m, n=0.012 (concrete), head=50m (S≈3.1%)
+        // v = (1/0.012) × (0.915)^(2/3) × (0.031)^(1/2) ≈ 13.8 m/s
         let mf = ManningFlow::new(3.66, 1609.0, 0.012, 50.0);
         let r = mf.calculate();
         assert!((r.slope - 0.031).abs() < 0.002, "slope = {:.4}", r.slope);
@@ -152,18 +151,21 @@ mod tests {
     }
 
     #[test]
-    fn test_tucson_tunnel_velocity() {
-        // Tucson tunnel: D=3.66m, L=1287m, head=42.6m (S≈3.3%)
-        // Manning full-pipe gives high velocity (~14 m/s) — the tunnel would be
-        // throttled or partially filled. Verify Manning math is internally consistent:
-        // v = (1/n) × R^(2/3) × S^(1/2)
+    fn test_velocity_equals_q_over_a() {
+        // Internal consistency: v must equal Q/A for any inputs
         let mf = ManningFlow::new(3.66, 1287.0, 0.012, 42.6);
         let r = mf.calculate();
-        // Verify: v = Q / A
         let expected_v = r.flow_rate_m3_s / r.area_m2;
         assert!((r.velocity_m_s - expected_v).abs() < 1e-10,
-            "Manning velocity consistent: {:.4} vs {:.4}", r.velocity_m_s, expected_v);
-        // At this slope, full-pipe velocity is high (>10 m/s)
-        assert!(r.velocity_m_s > 10.0, "high slope → high Manning velocity = {:.2}", r.velocity_m_s);
+            "v={:.4} vs Q/A={:.4}", r.velocity_m_s, expected_v);
+    }
+
+    #[test]
+    fn test_larger_diameter_more_flow() {
+        // At same slope and roughness, larger pipe = more flow
+        let small = ManningFlow::new(1.0, 1000.0, 0.012, 10.0).calculate();
+        let large = ManningFlow::new(3.0, 1000.0, 0.012, 10.0).calculate();
+        assert!(large.flow_rate_m3_s > small.flow_rate_m3_s,
+            "larger pipe should carry more: {:.1} vs {:.1}", large.flow_rate_m3_s, small.flow_rate_m3_s);
     }
 }

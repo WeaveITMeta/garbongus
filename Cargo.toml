@@ -1,11 +1,11 @@
 [package]
 name = "garbongus"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["WeaveITMeta"]
-description = "Fluid mechanics library for suction/vacuum lift, capillary rise, pipe flow, and desalination water transport calculations. Pure Rust, zero dependencies."
+description = "Fluid mechanics library: pipe sizing, pump power, Manning equation, multi-segment pipelines, seawater properties, Bernoulli, Darcy-Weisbach, vacuum lift, capillary rise. Pure Rust, zero dependencies."
 license = "MIT"
-keywords = ["fluid-mechanics", "desalination", "capillary", "vacuum", "pipe-flow"]
+keywords = ["fluid-mechanics", "hydraulics", "pipeline", "pump-power", "pipe-flow"]
 categories = ["science", "mathematics", "algorithms"]
 readme = "README.md"
 repository = "https://github.com/WeaveITMeta/garbongus"
