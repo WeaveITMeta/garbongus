@@ -1,6 +1,6 @@
 [package]
 name = "garbongus"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["WeaveITMeta"]
 description = "Fluid mechanics library for suction/vacuum lift, capillary rise, pipe flow, and desalination water transport calculations. Pure Rust, zero dependencies."
